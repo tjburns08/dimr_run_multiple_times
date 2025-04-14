@@ -1,0 +1,129 @@
+---
+title: "UMAP results"
+output: html_document
+date: "2025-04-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Here, we parse the output of the script.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+setwd(here::here("output"))
+
+method <- "umap" # tsne or umap
+input <- paste0(method, "_runs_100_cells_10000_scale_nozscore.rds")
+dimr_list <- readr::read_rds(input)
+
+# Tidy
+dimr_list <- lapply(dimr_list, function(i) {
+    names(i) <- c("dimr1", "dimr2")
+    return(i)
+})
+```
+```{r}
+cell_id <- 1
+one_cell <- lapply(dimr_list, function(i) {
+    return(i[cell_id,])
+}) %>% bind_rows()
+
+ggplot(one_cell, aes(x = dimr1, y = dimr2)) + geom_point(size = 5)
+```
+
+Now we need to view each of the UMAP conformations.
+
+```{r}
+ggplot(dimr_list[[1]], aes(x = dimr1, y = dimr2)) + geom_point()
+ggplot(dimr_list[[3]], aes(x = dimr1, y = dimr2)) + geom_point()
+```
+
+Ok, so it's indeed two very distinct conformations. But we need to see the full gif. And we need to create the animation directly in R.
+
+```{r}
+all_data <- bind_rows(dimr_list) # dplyr's bind_rows is convenient
+
+# Determine limits with a little padding
+xlims <- range(all_data[[1]]) + c(-0.5, 0.5)
+ylims <- range(all_data[[2]]) + c(-0.5, 0.5)
+```
+
+```{r}
+library(magick)
+library(animation)
+setwd(here::here("output"))
+
+# Define the output filename for the GIF
+gif_file <- paste0(method, "_animation.gif")
+
+# Set options for the animation package
+# You might need to specify the path to the 'magick' executable
+# if `animation` can't find it automatically, e.g.:
+# ani.options(convert = 'C:/Program Files/ImageMagick-7.1.0-Q16-HDRI/magick.exe')
+# Often, simply having the 'magick' R package installed is sufficient.
+# Check ani.options("convert")
+toplot <- lapply(dimr_list, function(i) {
+    color <- rep("other", nrow(i))
+    color[cell_id] <- "highlight"
+    result <- bind_cols(i, highlight_point = color)
+    return(result)
+})
+
+# Use saveGIF to create the animation
+saveGIF({
+    # Loop through each UMAP tibble in the list
+    for (i in seq_along(toplot)) {
+        # Get the current UMAP data
+        current_dimr <- toplot[[i]]
+
+        # Create the ggplot object for the current frame
+        p <- ggplot(current_dimr, aes(x = dimr1, y = dimr2)) +
+            geom_point(data = subset(current_dimr, highlight_point == "other"),
+                  color = "black", size = 1.5) +
+            # Then, add the highlighted point on top
+            geom_point(data = subset(current_dimr, highlight_point == "highlight"), color = "yellow", size = 10) +
+            coord_fixed(ratio = 1, xlim = xlims, ylim = ylims) + # Ensures consistent axes
+            theme_minimal() +
+            labs(
+                title = paste("Frame:", i),
+                x = "dimr 1",
+                y = "dimr 2"
+            ) +
+             theme(plot.title = element_text(hjust = 0.5)) # Center title
+
+        # IMPORTANT: Print the plot object so saveGIF captures it
+        print(p)
+    }
+},
+    movie.name = gif_file,   # Name of the output GIF file
+    interval = 0.3,          # Time interval between frames (in seconds)
+    ani.width = 600,         # Width of the GIF in pixels
+    ani.height = 600         # Height of the GIF in pixels
+)
+```
+
+```{r}
+setwd(here::here("output"))
+
+# Check if the GIF file was created
+if (file.exists(gif_file)) {
+    # Read the GIF using the magick package
+    dimr_gif <- image_read(gif_file)
+
+    # Print the magick object - this should display it in RStudio's Viewer
+    # or potentially the Plots pane depending on your setup.
+    print(dimr_gif)
+
+    # Optional: Get info about the GIF
+    # print(image_info(umap_gif))
+
+} else {
+    warning("GIF file was not created successfully.")
+}
+
+knitr::include_graphics(here::here("output", gif_file))
+```
+

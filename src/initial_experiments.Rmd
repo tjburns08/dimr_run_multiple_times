@@ -1,0 +1,103 @@
+---
+title: "Initial experiments"
+output: html_document
+date: "2025-03-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's get started with our initial draft. Let's go with the Samusik bone marrow dataset. We hypothesize that different datasets will have different solution spaces. We think the PBMC 3k dataset for example will have many more solutions because it's really just three blobs.
+
+```{r}
+library(HDCytoData)
+library(tidyverse)
+```
+
+Let's upload the data.
+
+```{r}
+se <- HDCytoData::Samusik_01_SE()
+se
+```
+
+Ok, now we subsample.
+
+```{r}
+num_cells <- 1000
+se <- se[sample(nrow(se), num_cells),]
+se
+```
+And now we pull out the expression matrix.
+
+```{r}
+cells <- se@assays@data$exprs %>% as_tibble()
+cells
+```
+
+And now we pull out the relevant markers.
+
+```{r}
+surface <- colData(se) %>% as_tibble() %>% dplyr::filter(marker_class == "type") %>% .[["marker_name"]]
+surface
+```
+And we subset our data.
+
+```{r}
+cells <- cells[surface]
+cells
+```
+
+Now we do a transform.
+
+```{r}
+cells <- asinh(cells/5) %>% as_tibble()
+cells
+```
+
+And at this point, I think we are in business. Here is what we need to do. We need to run UMAP many times. We can produce a list of each run. We can then track a specific cell ID (eg. row 1). We can then plot its position across all runs. We can produce more sophisticated visuals later, but this is a place to start.
+
+```{r}
+library(umap)
+
+num_runs <- 100
+dimr_list <- lapply(seq(num_runs), function(i) {
+    set.seed(i)
+    result <- umap::umap(cells, preserve.seed = TRUE)$layout %>% as_tibble()
+    names(result) <- c("umap1", "umap2")
+    return(result)
+})
+
+dimr_list[1]
+```
+Great. And now we have our maps. For the purpose of a sanity check, let's go ahead and plot one of them.
+
+```{r}
+ggplot(dimr_list[[1]], aes(x = umap1, y = umap2)) + geom_point()
+```
+
+Ok, that looks like what we would expect to look like. Now what we are going to do is produce a new map that simply has one cell being tracked across each run.
+
+```{r}
+cell_id <- 1
+one_cell <- lapply(dimr_list, function(i) {
+    return(i[cell_id,])
+}) %>% bind_rows()
+
+one_cell
+```
+
+```{r}
+ggplot(one_cell, aes(x = umap1, y = umap2)) + geom_point()
+```
+
+Bear in mind the xy coordinates. If these points are near each other, and the coordinates are not fixed, then you might see one or both axes very much zoomed in.
+
+Now let's output our work so we don't have to run this again a bunch of times.
+
+```{r}
+setwd(here::here("output"))
+readr::write_rds(dimr_list, "umap_list_1000_cells_100_runs.rds")
+```
+

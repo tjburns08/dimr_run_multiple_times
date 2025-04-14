@@ -1,0 +1,48 @@
+---
+title: "Parse output"
+output: html_document
+date: "2025-04-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Here, we parse the output of the script.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+setwd(here::here("output"))
+dimr_list <- readr::read_rds("umap_runs_20_cells_1000_scale_TRUE.rds")
+```
+```{r}
+cell_id <- 1
+one_cell <- lapply(dimr_list, function(i) {
+    return(i[cell_id,])
+}) %>% bind_rows()
+
+one_cell
+```
+
+```{r}
+ggplot(one_cell, aes(x = umap1, y = umap2)) + geom_point()
+```
+
+```{r}
+setwd(here::here("output"))
+dimr_list <- readr::read_rds("umap_runs_20_cells_1000_scale_FALSE.rds")
+```
+```{r}
+cell_id <- 1
+one_cell <- lapply(dimr_list, function(i) {
+    return(i[cell_id,])
+}) %>% bind_rows()
+
+one_cell
+```
+
+```{r}
+ggplot(one_cell, aes(x = umap1, y = umap2)) + geom_point()
+```
