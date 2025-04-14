@@ -11,7 +11,7 @@ Key takeaway: _Run your dimensionality reductions multiple times._ The layout is
 - These patterns inform how we interpret dimensionality reduction in single-cell data, particularly in terms of island stability vs. layout reliability.
 
 <p align="center">
-  <img src="output/animation/ppt_vid.gif" alt="t-SNE and UMAP animation" width="400"/>
+  <img src="output/animation/ppt_vid.gif" alt="t-SNE and UMAP animation"/>
 </p>
 
 ## Project Structure
